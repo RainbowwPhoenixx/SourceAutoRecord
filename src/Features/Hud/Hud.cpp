@@ -229,7 +229,7 @@ std::vector<std::string> elementOrder = {
 	"trace",
 	"frame",
 	"last_frame",
-	"inspection",
+	"inspection"
 };
 
 void HudElement::IndexAll() {
@@ -321,6 +321,7 @@ struct TextComponent {
 
 struct TextLine {
 	bool draw = true;
+	int playerDataOffset = -1;
 	Color defaultColor;
 	std::vector<TextComponent> components;
 };

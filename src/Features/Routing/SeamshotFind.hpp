@@ -6,6 +6,7 @@
 
 class SeamshotFind : public Feature {
 public:
+	CGameTrace TracePortalShot(const Vector &start, const Vector &dir, float length);
 	SeamshotFind();
 };
 

@@ -63,6 +63,27 @@ inline void Math::VectorCopy(const Vector &src, Vector &dst) {
 	dst.y = src.y;
 	dst.z = src.z;
 }
+inline QAngle VectorAngles(Vector forward, Vector pseudoup) {
+	QAngle angles;
+
+	Vector left = pseudoup.Cross(forward).Normalize();
+
+	float xyDist = sqrtf(forward[0] * forward[0] + forward[1] * forward[1]);
+
+	if (xyDist > 0.001f) {
+		angles.y = RAD2DEG(atan2f(forward[1], forward[0]));
+		angles.x = RAD2DEG(atan2f(-forward[2], xyDist));
+
+		float up_z = (left[1] * forward[0]) - (left[0] * forward[1]);
+
+		angles.z = RAD2DEG(atan2f(left[2], up_z));
+	} else {
+		angles.y = RAD2DEG(atan2f(-left[0], left[1]));
+		angles.x = RAD2DEG(atan2f(-forward[2], xyDist));
+		angles.z = 0;
+	}
+	return angles;
+}
 inline float Math::Distance(const Vector &a, const Vector &b) {
 	return std::sqrt(std::pow(b.x - a.x, 2) + std::pow(b.y - a.y, 2) + std::pow(b.z - a.z, 2));
 }

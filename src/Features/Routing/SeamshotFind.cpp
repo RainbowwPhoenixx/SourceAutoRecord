@@ -8,6 +8,8 @@
 #include "Modules/Engine.hpp"
 #include "Modules/Server.hpp"
 #include "Variable.hpp"
+#include "Features/Hud/Hud.hpp"
+#include "Features/EntityList.hpp"
 
 Variable sar_seamshot_finder("sar_seamshot_finder", "0", 0, 1, "Enables or disables seamshot finder overlay.\n");
 
@@ -17,7 +19,7 @@ SeamshotFind::SeamshotFind() {
 	this->hasLoaded = true;
 }
 
-CGameTrace TracePortalShot(const Vector &start, const Vector &dir, float length) {
+CGameTrace SeamshotFind::TracePortalShot(const Vector &start, const Vector &dir, float length) {
 	CGameTrace tr;
 
 	Vector finalDir = Vector(dir.x, dir.y, dir.z).Normalize() * length;
@@ -59,7 +61,7 @@ ON_EVENT(PRE_TICK) {
 
 		Vector dir(cosY * cosX, sinY * cosX, -sinX);
 
-		CGameTrace tr = TracePortalShot(camPos, dir, 65536.0);
+		CGameTrace tr = seamshotFind->TracePortalShot(camPos, dir, 65536.0);
 
 		// did hit something?
 		if (tr.plane.normal.Length() > 0.9) {
@@ -82,7 +84,7 @@ ON_EVENT(PRE_TICK) {
 			edgeTr.fraction = 999;
 			int nearestEdgeID = 0;
 			for (int i = 0; i < 4; i++) {
-				CGameTrace newEdgeTr = TracePortalShot(tr.endpos + tr.plane.normal, checkDirs[i], 10);
+				CGameTrace newEdgeTr = seamshotFind->TracePortalShot(tr.endpos + tr.plane.normal, checkDirs[i], 10);
 				if (newEdgeTr.fraction < edgeTr.fraction) {
 					edgeTr = newEdgeTr;
 					nearestEdgeID = i;
@@ -110,8 +112,8 @@ ON_EVENT(PRE_TICK) {
 				Vector test1o = tr.plane.normal * 0.001;
 				Vector test2o = edgeTr.plane.normal * 0.001;
 
-				CGameTrace side1tr = TracePortalShot(edgePoint + side1Vector + test1o, side1Vector * -1, 1.5);
-				CGameTrace side2tr = TracePortalShot(edgePoint + side2Vector + test2o, side2Vector * -1, 1.5);
+				CGameTrace side1tr = seamshotFind->TracePortalShot(edgePoint + side1Vector + test1o, side1Vector * -1, 1.5);
+				CGameTrace side2tr = seamshotFind->TracePortalShot(edgePoint + side2Vector + test2o, side2Vector * -1, 1.5);
 
 
 				bool seamshotInSide1 = side1tr.plane.normal.Length() == 0;
@@ -147,4 +149,62 @@ ON_EVENT(PRE_TICK) {
 			}
 		}
 	}
+}
+
+
+HUD_ELEMENT2(portalplacement, "0", "Tells whether an aimed point is portalable or not.\n", HudType_InGame | HudType_Paused | HudType_LoadingScreen) {
+	if (sv_cheats.GetBool()) {
+		void *player = server->GetPlayer(GET_SLOT() + 1);
+
+		if (player == nullptr || (int)player == -1)
+			return;
+
+		Vector camPos = server->GetAbsOrigin(player) + server->GetViewOffset(player);
+
+		QAngle angle = engine->GetAngles(GET_SLOT());
+
+		float X = DEG2RAD(angle.x), Y = DEG2RAD(angle.y);
+		auto cosX = std::cos(X), cosY = std::cos(Y);
+		auto sinX = std::sin(X), sinY = std::sin(Y);
+
+		Vector dir(cosY * cosX, sinY * cosX, -sinX);
+
+		CGameTrace tr = seamshotFind->TracePortalShot(camPos, dir, 65536.0);
+
+
+		bool canPlace = false;
+
+		// did hit something?
+		if (tr.plane.normal.Length() > 0.9) {
+			//calculating portal angles in a similar way it's done in the game
+			Vector vUp(0.0f, 0.0f, 1.0f);
+			if (tr.plane.normal.x > -0.001f && tr.plane.normal.x < 0.001f) {
+				vUp = dir;
+			}
+			QAngle portalAngle = VectorAngles(tr.plane.normal, vUp);
+
+			//getting the portal handlers
+			auto m_hActiveWeapon = *(CBaseHandle *)((uintptr_t)player + Offsets::m_hActiveWeapon);
+			uintptr_t portalgun = (uintptr_t)entityList->LookupEntity(m_hActiveWeapon);
+
+			if (portalgun != NULL) {
+				auto m_hPrimaryPortal = *(CBaseHandle *)(portalgun + Offsets::m_hPrimaryPortal);
+				auto m_hSecondaryPortal = *(CBaseHandle *)(portalgun + Offsets::m_hSecondaryPortal);
+
+				auto bluePortal = (uintptr_t)entityList->LookupEntity(m_hPrimaryPortal);
+				auto orangePortal = (uintptr_t)entityList->LookupEntity(m_hSecondaryPortal);
+
+				for (int i = 0; i < 2; ++i) {
+					uintptr_t portal = i == 0 ? bluePortal : orangePortal;
+					if (portal == NULL) continue;
+					int placementResult = server->VerifyPortalPlacement(portal, tr.endpos, portalAngle, 32, 56, 2);
+					if (placementResult <= 2) canPlace = true;
+				}
+			}
+
+		}
+
+		ctx->DrawElement("portalplacement: %s", canPlace ? "true" : "false");
+	}
+	
 }
