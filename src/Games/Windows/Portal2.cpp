@@ -237,6 +237,7 @@ void Portal2::LoadOffsets() {
 	ClientCommand = 39;                  // CVEngineServer
 	IsServerPaused = 81;                 // CVEngineServer
 	ServerPause = 121;                   // CVEngineServer
+	m_iLinkageGroupID = 11076;           // CProp_Portal
 	TraceRay = 5;                        // IEngineTrace
 	IsPlayer = 85;                       // CBasePlayer
 	AcceptInput = 40;                    // CBasePlayer

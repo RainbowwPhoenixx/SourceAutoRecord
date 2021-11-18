@@ -648,12 +648,16 @@ bool Server::Init() {
 	Memory::UnProtect((void *)(insn_addr + 2), 1);
 	*(char *)(insn_addr + 2) = 0x5C;
 
-	//find the VerifyPortalPlacement function
+	// find the TraceFirePortal function
+#ifdef _WIN32
+	// Someone will need to find this
+	// TraceFirePortal = (_TraceFirePortal)Memory::Scan(server->Name(), "", 0);
+#else
+	TraceFirePortal = (_TraceFirePortal)Memory::Scan(server->Name(), "55 89 e5 57 56 8d bd f4 f8 ff ff 53 e8 38 59 e1 ff 81 c3 bf 01 c7 00 81 ec 40 07 00 00 8b 45 14", 0);
+#endif
+	console->Print("TraceFirePortal: %08X\n", (char*)TraceFirePortal);
 
-	VerifyPortalPlacement = (_VerifyPortalPlacement)Memory::Scan(server->Name(), "53 8B DC 83 EC 08 83 E4 F0 83 C4 04 55 8B 6B 04 89 6C 24 04 8B EC 81 EC 08 02 00 00 56 8B 73 0C", 0);
-	console->Print("VerifyPortalPlacement: %08X", (char*)VerifyPortalPlacement);
-
-	NetMessage::RegisterHandler(RESET_COOP_PROGRESS_MESSAGE_TYPE, &resetCoopProgress);
+	NetMessage::RegisterHandler(RESET_COOP_PROGRESS_MESSAGE_TYPE, &netResetCoopProgress);
 
 	offsetFinder->ServerSide("CBasePlayer", "m_nWaterLevel", &Offsets::m_nWaterLevel);
 	offsetFinder->ServerSide("CBasePlayer", "m_iName", &Offsets::m_iName);

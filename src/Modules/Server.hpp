@@ -21,7 +21,7 @@ public:
 	using _UTIL_PlayerByIndex = void *(__cdecl *)(int index);
 	using _GetAllServerClasses = ServerClass *(*)();
 	using _IsRestoring = bool (*)();
-	using _VerifyPortalPlacement = int(__cdecl *)(uintptr_t ignorePortal, Vector &vOrigin, QAngle &qAngles, float fHalfWidth, float fHalfHeight, int ePlacedBy);
+	using _TraceFirePortal = int(__rescall *)(uintptr_t pgunptr, Vector &vOrigin, Vector &Direction, bool portalToPlace, int ePlacedBy, TracePortalPlacementInfo_t &placementInfo);
 
 	// For some reason the variant_t is passed as a pointer on Linux?
 #ifdef _WIN32
@@ -45,7 +45,7 @@ public:
 	_SetKeyValueFloat SetKeyValueFloat = nullptr;
 	_SetKeyValueVector SetKeyValueVector = nullptr;
 	_AcceptInput AcceptInput = nullptr;
-	_VerifyPortalPlacement VerifyPortalPlacement = nullptr;
+	_TraceFirePortal TraceFirePortal = nullptr;
 
 	CGlobalVars *gpGlobals = nullptr;
 	CEntInfo *m_EntPtrArray = nullptr;

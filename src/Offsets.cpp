@@ -180,6 +180,7 @@ namespace Offsets {
 	int m_bActivated;
 	int m_bIsPortal2;
 	int m_hActiveWeapon;
+	int m_iLinkageGroupID;
 
 	// IEngineVGuiInternal
 	int IsGameUIVisible;

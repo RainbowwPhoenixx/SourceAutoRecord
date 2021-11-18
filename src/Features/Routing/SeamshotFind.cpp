@@ -153,14 +153,14 @@ ON_EVENT(PRE_TICK) {
 
 
 HUD_ELEMENT2(portalplacement, "0", "Tells whether an aimed point is portalable or not.\n", HudType_InGame | HudType_Paused | HudType_LoadingScreen) {
-	if (sv_cheats.GetBool()) {
+	// Not coop because I cba to mess with it
+	if (sv_cheats.GetBool() && !engine->IsCoop()) {
 		void *player = server->GetPlayer(GET_SLOT() + 1);
 
 		if (player == nullptr || (int)player == -1)
 			return;
 
 		Vector camPos = server->GetAbsOrigin(player) + server->GetViewOffset(player);
-
 		QAngle angle = engine->GetAngles(GET_SLOT());
 
 		float X = DEG2RAD(angle.x), Y = DEG2RAD(angle.y);
@@ -169,42 +169,51 @@ HUD_ELEMENT2(portalplacement, "0", "Tells whether an aimed point is portalable o
 
 		Vector dir(cosY * cosX, sinY * cosX, -sinX);
 
-		CGameTrace tr = seamshotFind->TracePortalShot(camPos, dir, 65536.0);
-
-
-		bool canPlace = false;
-
-		// did hit something?
-		if (tr.plane.normal.Length() > 0.9) {
-			//calculating portal angles in a similar way it's done in the game
-			Vector vUp(0.0f, 0.0f, 1.0f);
-			if (tr.plane.normal.x > -0.001f && tr.plane.normal.x < 0.001f) {
-				vUp = dir;
-			}
-			QAngle portalAngle = VectorAngles(tr.plane.normal, vUp);
-
-			//getting the portal handlers
-			auto m_hActiveWeapon = *(CBaseHandle *)((uintptr_t)player + Offsets::m_hActiveWeapon);
-			uintptr_t portalgun = (uintptr_t)entityList->LookupEntity(m_hActiveWeapon);
-
-			if (portalgun != NULL) {
-				auto m_hPrimaryPortal = *(CBaseHandle *)(portalgun + Offsets::m_hPrimaryPortal);
-				auto m_hSecondaryPortal = *(CBaseHandle *)(portalgun + Offsets::m_hSecondaryPortal);
-
-				auto bluePortal = (uintptr_t)entityList->LookupEntity(m_hPrimaryPortal);
-				auto orangePortal = (uintptr_t)entityList->LookupEntity(m_hSecondaryPortal);
-
-				for (int i = 0; i < 2; ++i) {
-					uintptr_t portal = i == 0 ? bluePortal : orangePortal;
-					if (portal == NULL) continue;
-					int placementResult = server->VerifyPortalPlacement(portal, tr.endpos, portalAngle, 32, 56, 2);
-					if (placementResult <= 2) canPlace = true;
-				}
-			}
-
+		// Get all the stuffs
+		auto m_hActiveWeapon = *(CBaseHandle *)((uintptr_t)player + Offsets::m_hActiveWeapon);
+		uintptr_t portalgun = (uintptr_t)entityList->LookupEntity(m_hActiveWeapon);
+		if (portalgun == NULL) {
+			ctx->DrawElement("portalplacement: no portalgun");
+			return;
 		}
 
-		ctx->DrawElement("portalplacement: %s", canPlace ? "true" : "false");
+		uint8_t linkage = *(unsigned char *)(portalgun + Offsets::m_iPortalLinkageGroupID);
+
+		auto m_hPrimaryPortal = *(CBaseHandle *)(portalgun + Offsets::m_hPrimaryPortal);
+		auto m_hSecondaryPortal = *(CBaseHandle *)(portalgun + Offsets::m_hSecondaryPortal);
+		auto bluePortal = (uintptr_t)entityList->LookupEntity(m_hPrimaryPortal);
+		auto orangePortal = (uintptr_t)entityList->LookupEntity(m_hSecondaryPortal);
+		bool createBlue = bluePortal == NULL;
+		bool createOrange = orangePortal == NULL;
+
+		if (createBlue) {
+			// spawn the portal
+			bluePortal = (uintptr_t)server->CreateEntityByName(nullptr, "prop_portal");
+			// console->Print("blue portal: %08X\n", (char*)bluePortal);
+			*(uint8_t *)(bluePortal + Offsets::m_iLinkageGroupID) = linkage;
+			*(bool *)(bluePortal + Offsets::m_bIsPortal2) = 0;
+			server->DispatchSpawn(nullptr, (void*)bluePortal);
+		}
+		if (createOrange) {
+			// spawn the portal
+			orangePortal = (uintptr_t)server->CreateEntityByName(nullptr, "prop_portal");
+			// console->Print("orange portal: %08X\n", (char*)orangePortal);
+			*(uint8_t *)(orangePortal + Offsets::m_iLinkageGroupID) = linkage;
+			*(bool *)(orangePortal + Offsets::m_bIsPortal2) = 1;
+			server->DispatchSpawn(nullptr, (void*)orangePortal);
+		}
+
+		TracePortalPlacementInfo_t resultInfo;
+		// Check blue
+		bool canPlace = server->TraceFirePortal(portalgun, camPos, dir, 0, 2, resultInfo);
+		ctx->DrawElement("portalplacement blue: %s", canPlace ? "true" : "false");
+		// Check Orange
+		canPlace = server->TraceFirePortal(portalgun, camPos, dir, 1, 2, resultInfo);
+		ctx->DrawElement("portalplacement orange: %s", canPlace ? "true" : "false");
+
+		if (createBlue)
+			server->KillEntity((void*)bluePortal);
+		if (createOrange)
+			server->KillEntity((void*)orangePortal);
 	}
-	
 }
