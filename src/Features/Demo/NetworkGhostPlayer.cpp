@@ -447,7 +447,7 @@ void NetworkManager::RunNetwork() {
 			// It's been one update rate interval - send our data again
 			// if we need to
 
-			if (engine->isRunning() && !engine->IsGamePaused()) {
+			if ((engine->isRunning() || engine->IsOrange()) && !engine->IsGamePaused()) {
 				this->SendPlayerData();
 			}
 
@@ -953,13 +953,14 @@ bool NetworkManager::IsSyncing() {
 }
 
 ON_EVENT(RENDER) {
-	if (networkManager.isConnected && engine->isRunning()) {
+	if (networkManager.isConnected && (engine->isRunning() || engine->IsOrange())) {
+		// Is this executed on orange?? (is the engine considered running?)
 		networkManager.UpdateGhostsPosition();
 	}
 }
 
 ON_EVENT(PRE_TICK) {
-	if (networkManager.isConnected && engine->isRunning()) {
+	if (networkManager.isConnected && (engine->isRunning() || engine->IsOrange())) {
 		if (networkManager.isCountdownReady) {
 			networkManager.UpdateCountdown();
 		}
